@@ -1,0 +1,92 @@
+import java.io.*;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+/**
+ * ICT261 Unit 4 Lab: Exception Handling and Error Management.
+ * Imports student marks while reporting bad records and continuing safely.
+ */
+public class MarksImporter {
+    private static final Logger LOGGER =
+            Logger.getLogger(MarksImporter.class.getName());
+
+    // Custom unchecked exception for a repeated student number.
+    static class DuplicateStudentException extends RuntimeException {
+        public DuplicateStudentException(String message) {
+            super(message);
+        }
+    }
+
+    static void importMarks(String filename) throws IOException {
+        Set<String> seen = new HashSet<>();
+        // try-with-resources automatically closes the reader, even if an
+        // exception occurs while reading or processing the file.
+        try (BufferedReader br =
+                     new BufferedReader(new FileReader(filename))) {
+            String line;
+            int lineNumber = 0;
+            while ((line = br.readLine()) != null) {
+                lineNumber++;
+                try {
+                    String[] parts = line.split(",", -1);
+                    // TODO 1: Require exactly two fields.
+                    if (parts.length != 2) {
+                        throw new IllegalArgumentException(
+                                "Expected student ID and mark separated by a comma.");
+                    }
+                    String studentId = parts[0].trim();
+                    String markText = parts[1].trim();
+                    if (studentId.isEmpty() || markText.isEmpty()) {
+                        throw new IllegalArgumentException(
+                                "Student ID and mark must not be empty.");
+                    }
+                    // TODO 2: Parse the mark and validate the range 0..100.
+                    int mark = Integer.parseInt(markText);
+                    if (mark < 0 || mark > 100) {
+                        throw new IllegalArgumentException(
+                                "Mark must be between 0 and 100.");
+                    }
+                    // TODO 3: Detect a repeated student ID.
+                    if (!seen.add(studentId)) {
+                        throw new DuplicateStudentException(
+                                "Student ID " + studentId + " appears more than once.");
+                    }
+                    // TODO 4: Display an accepted record.
+                    System.out.println("Accepted: " + studentId + " = " + mark);
+                } catch (NumberFormatException e) {
+                    System.out.println("Line " + lineNumber
+                            + ": Invalid mark. Enter a whole number.");
+                    LOGGER.log(Level.WARNING,
+                            "NumberFormatException on line " + lineNumber, e);
+                } catch (DuplicateStudentException e) {
+                    System.out.println("Line " + lineNumber
+                            + ": Duplicate student number; record skipped.");
+                    LOGGER.log(Level.WARNING,
+                            "DuplicateStudentException on line " + lineNumber, e);
+                } catch (IllegalArgumentException e) {
+                    System.out.println("Line " + lineNumber
+                            + ": Invalid record - " + e.getMessage());
+                    LOGGER.log(Level.WARNING,
+                            "IllegalArgumentException on line " + lineNumber, e);
+                }
+            }
+        }
+    }
+
+    public static void main(String[] args) {
+        String filename = args.length > 0 ? args[0] : "marks.txt";
+        try {
+            importMarks(filename);
+        } catch (FileNotFoundException e) {
+            System.out.println("Marks file not found; check the file name.");
+            LOGGER.log(Level.SEVERE, "The marks file could not be found.", e);
+        } catch (IOException e) {
+            System.out.println("The marks file could not be read. Please try again.");
+            LOGGER.log(Level.SEVERE, "An input/output error occurred.", e);
+        } finally {
+            System.out.println("Import attempt finished");
+        }
+    }
+}
